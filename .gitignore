@@ -1,2 +1,8 @@
-*.class
 *.log
+
+# ignore Inellij IDEA cruft
+.idea/
+target/
+
+# ignore Jupyter cruft
+.ipynb_checkpoints/
