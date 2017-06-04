@@ -65,8 +65,8 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
       "tick" -> o.tick
     )
   }
-  implicit def priceWrites[T <: Tradable]: OWrites[Price] = Json.writes[Price]
-  implicit def quantityWrites[T <: Tradable]: OWrites[Quantity] = Json.writes[Quantity]
+  implicit def priceWrites[T <: Tradable]: Writes[Price] = Json.writes[Price]
+  implicit def quantityWrites[T <: Tradable]: Writes[Quantity] = Json.writes[Quantity]
 
   implicit def orderWrites[T <: Tradable, O <: Order[T]]: Writes[O] = new Writes[O] {
     def writes(o: O): JsValue = Json.obj(
@@ -79,7 +79,7 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
 
   implicit def askOrderWrites[T <: Tradable]: Writes[AskOrder[T]] = orderWrites[T, AskOrder[T]]
   implicit def bidOrderWrites[T <: Tradable]: Writes[BidOrder[T]] = orderWrites[T, BidOrder[T]]
-  implicit def fillWrites[T <: Tradable]: OWrites[Fill[T]] = Json.writes[Fill[T]]
+  implicit def fillWrites[T <: Tradable]: Writes[Fill[T]] = Json.writes[Fill[T]]
 
   // type alias to simplify the type signatures of the simulate function...
   private[this] type DoubleAuction[T <: Tradable] = SealedBidDoubleAuction.DiscriminatoryPricingImpl[T]
