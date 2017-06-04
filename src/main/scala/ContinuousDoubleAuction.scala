@@ -13,14 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.{BufferedWriter, File, FileOutputStream, FileWriter}
 
-import org.economicsl.auctions.{Price, Tradable}
+import org.economicsl.auctions.{Price, Quantity, Tradable}
 import org.economicsl.auctions.singleunit.{ClearResult, Fill}
 import org.economicsl.auctions.singleunit.orders.{AskOrder, BidOrder, Order}
 import org.economicsl.auctions.singleunit.pricing.WeightedAveragePricingPolicy
 import org.economicsl.auctions.singleunit.twosided.SealedBidDoubleAuction
-import play.api.libs.json.{JsValue, Json, OWrites}
+import play.api.libs.json._
 
 import scala.util.Random
 
@@ -37,22 +37,37 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
 
   // generate some random order flow and simulate the auction
   val prng = new Random(42)
-  val orderFlow: Stream[Order[AppleStock]] = randomOrders(1000, AppleStock(1), prng)
+  val orderFlow: Stream[Order[AppleStock]] = randomOrders(100000, AppleStock(1), prng)
   val pricingPolicy: WeightedAveragePricingPolicy[AppleStock] = new WeightedAveragePricingPolicy[AppleStock](weight = 0.5)
   val doubleAuction: DoubleAuction[AppleStock] = SealedBidDoubleAuction.withDiscriminatoryPricing(pricingPolicy)
   val results = simulate(doubleAuction)(orderFlow)
 
   // at this point we would want to serialize the JSON results to a file...which we would then read into Pandas.
-  val jsonResults = toJson(results)
-  val file = new File("/output.json")  // write output to file in the src/main/resources directory
+  val file = new File("./output.json")
   val bw = new BufferedWriter(new FileWriter(file))
-  jsonResults.foreach(result => bw.write(result.toString))
+  bw.write(toJson(results).toString)
   bw.close()
 
   // converts Fill[T] to JSON...should these be part of esl-auctions?
-  implicit def askOrderWrites[T <: Tradable]: OWrites[AskOrder[T]] = Json.writes[AskOrder[T]]
-  implicit def bidOrderWrites[T <: Tradable]: OWrites[BidOrder[T]] = Json.writes[BidOrder[T]]
+  implicit lazy val tradableWrites: Writes[Tradable] = new Writes[Tradable] {
+    def writes(o: Tradable): JsValue = Json.obj(
+      "tick" -> o.tick
+    )
+  }
   implicit def priceWrites[T <: Tradable]: OWrites[Price] = Json.writes[Price]
+  implicit def quantityWrites[T <: Tradable]: OWrites[Quantity] = Json.writes[Quantity]
+
+  implicit def orderWrites[T <: Tradable, O <: Order[T]]: Writes[O] = new Writes[O] {
+    def writes(o: O): JsValue = Json.obj(
+      "issuer" -> o.issuer,
+      "limit" -> o.limit,
+      "quantity" -> o.quantity,
+      "tradable" -> o.tradable
+    )
+  }
+
+  implicit def askOrderWrites[T <: Tradable]: Writes[AskOrder[T]] = orderWrites[T, AskOrder[T]]
+  implicit def bidOrderWrites[T <: Tradable]: Writes[BidOrder[T]] = orderWrites[T, BidOrder[T]]
   implicit def fillWrites[T <: Tradable]: OWrites[Fill[T]] = Json.writes[Fill[T]]
 
   // type alias to simplify the type signatures of the simulate function...
@@ -64,9 +79,9 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
     * @tparam T
     * @return
     */
-  private[this] def toJson[T <: Tradable](results: Stream[ClearResult[T, DoubleAuction[T]]]): Stream[JsValue] = {
+  private[this] def toJson[T <: Tradable](results: Stream[ClearResult[T, DoubleAuction[T]]]): JsArray = {
     val fills: Stream[Fill[T]] = results.flatMap(result => result.fills).flatten
-    fills.map(fill => Json.toJson(fill))
+    new JsArray(fills.map(fill => Json.toJson(fill)).toIndexedSeq)
   }
 
   /** A lazy, tail-recursive simulation of a continuous double auction.
