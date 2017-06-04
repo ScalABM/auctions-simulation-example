@@ -1,0 +1,6 @@
+name: auctions-simulation-example
+
+dependencies:
+  - python >= 3.0
+  - pandas
+  - plotly
