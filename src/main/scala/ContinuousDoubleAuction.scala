@@ -13,8 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import java.io.{BufferedWriter, File, FileOutputStream, FileWriter}
+import java.io.{BufferedWriter, File, FileWriter}
 
+import com.typesafe.config.ConfigFactory
 import org.economicsl.auctions.{Price, Quantity, Tradable}
 import org.economicsl.auctions.singleunit.{ClearResult, Fill}
 import org.economicsl.auctions.singleunit.orders.{AskOrder, BidOrder, Order}
@@ -31,15 +32,25 @@ import scala.util.Random
   */
 object ContinuousDoubleAuction extends App with OrderGenerator {
 
+  val config = ConfigFactory.load("simulation.conf")
+
   // probably want to push Security up into an esl-auctions Tradable hierarchy?
   trait Security extends Tradable
   case class AppleStock(tick: Long) extends Security
 
-  // generate some random order flow and simulate the auction
-  val prng = new Random(42)
-  val orderFlow: Stream[Order[AppleStock]] = randomOrders(100000, AppleStock(1), prng)
-  val pricingPolicy: WeightedAveragePricingPolicy[AppleStock] = new WeightedAveragePricingPolicy[AppleStock](weight = 0.5)
+  // configure the random order flow
+  val seed = config.getLong("simulation.order-flow.seed")
+  val prng = new Random(seed)
+  val number = config.getInt("simulation.order-flow.number-orders")
+  val orderFlow: Stream[Order[AppleStock]] = randomOrders(number, AppleStock(1), prng)
+
+  // configure the pricing policy
+  val k = config.getDouble("simulation.pricing-policy.weight")
+  val pricingPolicy: WeightedAveragePricingPolicy[AppleStock] = new WeightedAveragePricingPolicy[AppleStock](weight = k)
+
+  // configure the auction mechanism
   val doubleAuction: DoubleAuction[AppleStock] = SealedBidDoubleAuction.withDiscriminatoryPricing(pricingPolicy)
+
   val results = simulate(doubleAuction)(orderFlow)
 
   // at this point we would want to serialize the JSON results to a file...which we would then read into Pandas.
