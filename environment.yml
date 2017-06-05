@@ -4,3 +4,5 @@ dependencies:
   - python >= 3.0
   - pandas
   - plotly
+  - pip:
+    - cufflinks
