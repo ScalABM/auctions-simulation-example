@@ -6,3 +6,5 @@ target/
 
 # ignore Jupyter cruft
 .ipynb_checkpoints/
+
+output.json

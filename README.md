@@ -1,5 +1,5 @@
-# auctions-simulation-example
-Example application demonstrating how to run ESL auction simulations and analyze results using Python.
+# Auction Simulation Example
+Example application demonstrating how to run [EconomicSL](https://github.com/EconomicSL) auction simulations and analyze results using Python.
 
 ## Installing Dependencies
 
