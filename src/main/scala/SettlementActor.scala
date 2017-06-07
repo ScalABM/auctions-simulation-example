@@ -13,15 +13,32 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+import java.io.{BufferedWriter, File, FileWriter}
+
 import akka.actor.Actor
+import org.economicsl.auctions.Tradable
+import org.economicsl.auctions.singleunit.{ClearResult, Fill}
+import play.api.libs.json.{JsArray, Json}
 
-import org.economicsl.auctions.singleunit.Fill
 
-class SettlementActor extends Actor {
+class SettlementActor(path: String) extends Actor {
 
-  // settlement actor should receive fills and write them to file...
+  import Implicits._
+
   def receive: Receive = {
-    case fills: Stream[Fill[_]] => fills.foreach(fill => ???)
+    case ClearResult(fills, _) => fills.foreach(stream => bw.write(toJson(stream.toIndexedSeq).toString)) // todo: avoid type conversions!
+  }
+
+  @scala.throws[Exception](classOf[Exception])
+  override def postStop(): Unit = {
+    super.postStop()
+    bw.close()
+  }
+
+  private[this] val bw = new BufferedWriter(new FileWriter(new File(path), true))
+
+  private[this] def toJson[T <: Tradable](fills: IndexedSeq[Fill[T]]): JsArray = {
+    new JsArray(fills.map(fill => Json.toJson(fill)))
   }
 
 }

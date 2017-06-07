@@ -32,6 +32,8 @@ import scala.util.Random
   */
 object ContinuousDoubleAuction extends App with OrderGenerator {
 
+  import Implicits._
+
   val config = ConfigFactory.load("simulation.conf")
 
   // probably want to push Security up into an esl-auctions Tradable hierarchy?
@@ -58,28 +60,6 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
   val bw = new BufferedWriter(new FileWriter(file))
   bw.write(toJson(results).toString)
   bw.close()
-
-  // converts Fill[T] to JSON...should these be part of esl-auctions?
-  implicit lazy val tradableWrites: Writes[Tradable] = new Writes[Tradable] {
-    def writes(o: Tradable): JsValue = Json.obj(
-      "tick" -> o.tick
-    )
-  }
-  implicit def priceWrites[T <: Tradable]: Writes[Price] = Json.writes[Price]
-  implicit def quantityWrites[T <: Tradable]: Writes[Quantity] = Json.writes[Quantity]
-
-  implicit def orderWrites[T <: Tradable, O <: Order[T]]: Writes[O] = new Writes[O] {
-    def writes(o: O): JsValue = Json.obj(
-      "issuer" -> o.issuer,
-      "limit" -> o.limit,
-      "quantity" -> o.quantity,
-      "tradable" -> o.tradable
-    )
-  }
-
-  implicit def askOrderWrites[T <: Tradable]: Writes[AskOrder[T]] = orderWrites[T, AskOrder[T]]
-  implicit def bidOrderWrites[T <: Tradable]: Writes[BidOrder[T]] = orderWrites[T, BidOrder[T]]
-  implicit def fillWrites[T <: Tradable]: Writes[Fill[T]] = Json.writes[Fill[T]]
 
   // type alias to simplify the type signatures of the simulate function...
   private[this] type DoubleAuction[T <: Tradable] = SealedBidDoubleAuction.DiscriminatoryPricingImpl[T]
