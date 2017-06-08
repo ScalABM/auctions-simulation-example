@@ -32,8 +32,6 @@ import scala.util.Random
   */
 object ContinuousDoubleAuction extends App with OrderGenerator {
 
-  import Implicits._
-
   val config = ConfigFactory.load("simulation.conf")
 
   // probably want to push Security up into an esl-auctions Tradable hierarchy?

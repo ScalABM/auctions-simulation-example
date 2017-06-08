@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorSystem, PoisonPill, Props}
 import com.typesafe.config.ConfigFactory
 import org.economicsl.auctions.singleunit.orders.Order
 import org.economicsl.auctions.singleunit.pricing.WeightedAveragePricingPolicy
@@ -29,7 +29,7 @@ import scala.util.Random
   */
 object PeriodicDoubleAuctionSimulation extends App with OrderGenerator {
 
-  val config = ConfigFactory.load("simulation.conf")
+  val config = ConfigFactory.load("periodic-double-auction.conf")
 
   // start the actor system
   val actorSystem = ActorSystem("AuctionSystem", config)
@@ -39,26 +39,34 @@ object PeriodicDoubleAuctionSimulation extends App with OrderGenerator {
   val pricingPolicy: WeightedAveragePricingPolicy[AppleStock] = new WeightedAveragePricingPolicy[AppleStock](weight = k)
 
   // configure the clearing schedule
-  val initialDelay = FiniteDuration(config.getLong("simulation.auction.clearing.initial-delay"), "seconds")
+  val timeUnit = config.getString("simulation.auction.clearing.time-unit")
+  val initialDelay = FiniteDuration(config.getLong("simulation.auction.clearing.initial-delay"), timeUnit)
   val interval = FiniteDuration(config.getLong("simulation.auction.clearing.interval"), "seconds")
-  val clearingSchedule = ClearingSchedule(initialDelay, interval)
+  val clearingSchedule = ClearingSchedule(initialDelay, interval)  // todo should be able to create this directly from JSON data
 
   // configure the settlement service
-  val settlementService = actorSystem.actorOf(Props(classOf[SettlementActor], "output.json"), "settlement")
-
-  // configure the auction mechanism
-  val auctionClass = classOf[PeriodicDoubleAuctionActor[AppleStock]]
-  val auctionProps = Props(auctionClass, pricingPolicy, clearingSchedule, settlementService)
-  actorSystem.actorOf(auctionProps, "auction")
+  val settlementService = actorSystem.actorOf(Props(classOf[SettlementActor], "period-double-auction.json"), "settlement")
 
   // probably want to push Security up into an esl-auctions Tradable hierarchy?
   trait Security extends Tradable
   case class AppleStock(tick: Long) extends Security
+
+  // configure the auction mechanism
+  val auctionClass = classOf[PeriodicDoubleAuctionActor[AppleStock]]
+  val auctionProps = Props(auctionClass, pricingPolicy, clearingSchedule, settlementService)
+  val auctionService = actorSystem.actorOf(auctionProps, "auction")
+
+  // create the reaper
+  val reaper = actorSystem.actorOf(Props(classOf[Reaper], auctionService, settlementService))
 
   // configure the random order flow
   val seed = config.getLong("simulation.order-flow.seed")
   val prng = new Random(seed)
   val number = config.getInt("simulation.order-flow.number-orders")
   val orderFlow: Stream[Order[AppleStock]] = randomOrders(number, AppleStock(1), prng)
+
+  orderFlow.foreach(order => auctionService ! order)
+
+  auctionService ! PoisonPill
 
 }

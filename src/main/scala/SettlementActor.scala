@@ -18,27 +18,26 @@ import java.io.{BufferedWriter, File, FileWriter}
 import akka.actor.Actor
 import org.economicsl.auctions.Tradable
 import org.economicsl.auctions.singleunit.{ClearResult, Fill}
-import play.api.libs.json.{JsArray, Json}
+import play.api.libs.json.Json
+
+import scala.collection.mutable
 
 
+/** SettlementActor acts as a buffer for the `ClearResults` and then write them to disk upon termination. */
 class SettlementActor(path: String) extends Actor {
 
-  import Implicits._
-
   def receive: Receive = {
-    case ClearResult(fills, _) => fills.foreach(stream => bw.write(toJson(stream.toIndexedSeq).toString)) // todo: avoid type conversions!
+    case ClearResult(fills, _) => fills.foreach(stream => buffer += stream.toList)
   }
 
   @scala.throws[Exception](classOf[Exception])
   override def postStop(): Unit = {
     super.postStop()
+    val bw = new BufferedWriter(new FileWriter(new File(path)))
+    bw.write(Json.toJson(buffer).toString())
     bw.close()
   }
 
-  private[this] val bw = new BufferedWriter(new FileWriter(new File(path), true))
-
-  private[this] def toJson[T <: Tradable](fills: IndexedSeq[Fill[T]]): JsArray = {
-    new JsArray(fills.map(fill => Json.toJson(fill)))
-  }
+  private[this] val buffer = mutable.Buffer.empty[List[Fill[Tradable]]]
 
 }
