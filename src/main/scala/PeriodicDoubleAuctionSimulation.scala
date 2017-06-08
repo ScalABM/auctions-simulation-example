@@ -45,7 +45,8 @@ object PeriodicDoubleAuctionSimulation extends App with OrderGenerator {
   val clearingSchedule = ClearingSchedule(initialDelay, interval)  // todo should be able to create this directly from JSON data
 
   // configure the settlement service
-  val settlementService = actorSystem.actorOf(Props(classOf[SettlementActor], "period-double-auction.json"), "settlement")
+  val path = config.getString("simulation.results.path")
+  val settlementService = actorSystem.actorOf(Props(classOf[SettlementActor], path), "settlement")
 
   // probably want to push Security up into an esl-auctions Tradable hierarchy?
   trait Security extends Tradable
