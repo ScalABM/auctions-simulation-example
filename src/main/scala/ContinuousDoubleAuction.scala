@@ -16,14 +16,14 @@ limitations under the License.
 import java.io.{BufferedWriter, File, FileWriter}
 
 import com.typesafe.config.ConfigFactory
-import org.economicsl.auctions.{Price, Quantity, Tradable}
-import org.economicsl.auctions.singleunit.{ClearResult, Fill}
+import org.economicsl.auctions.{ClearResult, Fill}
 import org.economicsl.auctions.singleunit.orders.{AskOrder, BidOrder, Order}
 import org.economicsl.auctions.singleunit.pricing.WeightedAveragePricingPolicy
 import org.economicsl.auctions.singleunit.twosided.SealedBidDoubleAuction
+import org.economicsl.core.Tradable
 import play.api.libs.json._
 
-import scala.util.Random
+import scala.util.{Failure, Random, Success}
 
 
 /** Simulate a generic continuous double auction.
@@ -49,7 +49,7 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
   val pricingPolicy: WeightedAveragePricingPolicy[AppleStock] = new WeightedAveragePricingPolicy[AppleStock](weight = k)
 
   // configure the auction mechanism
-  val doubleAuction: DoubleAuction[AppleStock] = SealedBidDoubleAuction.withDiscriminatoryPricing(pricingPolicy)
+  val doubleAuction: DoubleAuction[AppleStock] = SealedBidDoubleAuction.withDiscriminatoryPricing(pricingPolicy, tickSize = 1)
 
   val results = simulate(doubleAuction)(orderFlow)
 
@@ -68,8 +68,8 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
     * @tparam T
     * @return
     */
-  private[this] def toJson[T <: Tradable](results: Stream[ClearResult[T, DoubleAuction[T]]]): JsArray = {
-    val fills: Stream[Fill[T]] = results.flatMap(result => result.fills).flatten
+  private[this] def toJson[T <: Tradable](results: Stream[ClearResult[DoubleAuction[T]]]): JsArray = {
+    val fills: Stream[Fill] = results.flatMap(result => result.fills).flatten
     new JsArray(fills.map(fill => Json.toJson(fill)).toIndexedSeq)
   }
 
@@ -82,20 +82,28 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
     * @note Stream, as a lazy-list, is a last-in-first-out data structure. This means that if we want to process the
     *       results in the order in which they were generated we will need to process the stream in reverse.
     */
-  private[this] def simulate[T <: Tradable](auction: DoubleAuction[T])(incoming: Stream[Order[T]]): Stream[ClearResult[T, DoubleAuction[T]]] = {
+  private[this] def simulate[T <: Tradable](auction: DoubleAuction[T])(incoming: Stream[Order[T]]): Stream[ClearResult[DoubleAuction[T]]] = {
     @annotation.tailrec
-    def loop(da: DoubleAuction[T], in: Stream[Order[T]], out: Stream[ClearResult[T, DoubleAuction[T]]]): Stream[ClearResult[T, DoubleAuction[T]]] = in match {
+    def loop(da: DoubleAuction[T], in: Stream[Order[T]], out: Stream[ClearResult[DoubleAuction[T]]]): Stream[ClearResult[DoubleAuction[T]]] = in match {
       case Stream.Empty => out
       case head #:: tail => head match {
-        case order: AskOrder[T] =>
-          val results = da.insert(order).clear  // continuous clearing!
-          loop(results.residual, tail, results #:: out)
-        case order: BidOrder[T] =>
-          val results = da.insert(order).clear  // continuous clearing!
-          loop(results.residual, tail, results #:: out)
+        case order: AskOrder[T] => da.insert(order) match {
+          case Success(updated) =>
+            val results = updated.clear
+            loop(results.residual, tail, results #:: out)
+          case Failure(_) =>
+            loop(da, tail, out)
+        }  // continuous clearing!
+        case order: BidOrder[T] => da.insert(order) match {
+          case Success(updated) =>
+            val results = updated.clear
+            loop(results.residual, tail, results #:: out)
+          case Failure(_) =>
+            loop(da, tail, out)
+        }
       }
     }
-    loop(auction, incoming, Stream.empty[ClearResult[T, DoubleAuction[T]]])
+    loop(auction, incoming, Stream.empty[ClearResult[DoubleAuction[T]]])
   }
 
 

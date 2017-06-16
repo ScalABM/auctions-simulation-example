@@ -17,7 +17,7 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import com.typesafe.config.ConfigFactory
 import org.economicsl.auctions.singleunit.orders.Order
 import org.economicsl.auctions.singleunit.pricing.WeightedAveragePricingPolicy
-import org.economicsl.auctions.Tradable
+import org.economicsl.core.Tradable
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Random

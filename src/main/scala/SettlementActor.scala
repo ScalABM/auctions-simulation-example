@@ -16,8 +16,7 @@ limitations under the License.
 import java.io.{BufferedWriter, File, FileWriter}
 
 import akka.actor.Actor
-import org.economicsl.auctions.Tradable
-import org.economicsl.auctions.singleunit.{ClearResult, Fill}
+import org.economicsl.auctions.{ClearResult, Fill}
 import play.api.libs.json.Json
 
 import scala.collection.mutable
@@ -38,6 +37,6 @@ class SettlementActor(path: String) extends Actor {
     bw.close()
   }
 
-  private[this] val buffer = mutable.Buffer.empty[List[Fill[Tradable]]]
+  private[this] val buffer = mutable.Buffer.empty[List[Fill]]
 
 }

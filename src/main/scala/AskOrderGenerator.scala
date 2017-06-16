@@ -16,7 +16,7 @@ limitations under the License.
 import java.util.UUID
 
 import org.economicsl.auctions.singleunit.orders.LimitAskOrder
-import org.economicsl.auctions.{Price, Tradable}
+import org.economicsl.core.{Price, Tradable}
 
 import scala.util.Random
 
