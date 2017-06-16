@@ -54,7 +54,8 @@ object PeriodicDoubleAuctionSimulation extends App with OrderGenerator {
 
   // configure the auction mechanism
   val auctionClass = classOf[PeriodicDoubleAuctionActor[AppleStock]]
-  val auctionProps = Props(auctionClass, pricingPolicy, clearingSchedule, settlementService)
+  val tickSize = 1L
+  val auctionProps = Props(auctionClass, pricingPolicy, tickSize, clearingSchedule, settlementService)
   val auctionService = actorSystem.actorOf(auctionProps, "auction")
 
   // create the reaper
