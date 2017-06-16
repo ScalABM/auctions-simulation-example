@@ -54,7 +54,7 @@ object PeriodicDoubleAuctionSimulation extends App with OrderGenerator {
 
   // configure the auction mechanism
   val auctionClass = classOf[PeriodicDoubleAuctionActor[AppleStock]]
-  val tickSize = 1L
+  val tickSize = config.getLong("simulation.auction.tick-size")
   val auctionProps = Props(auctionClass, pricingPolicy, tickSize, clearingSchedule, settlementService)
   val auctionService = actorSystem.actorOf(auctionProps, "auction")
 

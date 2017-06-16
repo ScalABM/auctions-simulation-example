@@ -32,7 +32,7 @@ import scala.util.{Failure, Random, Success}
   */
 object ContinuousDoubleAuction extends App with OrderGenerator {
 
-  val config = ConfigFactory.load("simulation.conf")
+  val config = ConfigFactory.load("continuous-double-auction.conf")
 
   // probably want to push Security up into an esl-auctions Tradable hierarchy?
   trait Security extends Tradable
@@ -49,6 +49,7 @@ object ContinuousDoubleAuction extends App with OrderGenerator {
   val pricingPolicy: WeightedAveragePricingPolicy[AppleStock] = new WeightedAveragePricingPolicy[AppleStock](weight = k)
 
   // configure the auction mechanism
+  val tickSize = config.getLong("simulation.auction.tick-size")
   val doubleAuction: DoubleAuction[AppleStock] = SealedBidDoubleAuction.withDiscriminatoryPricing(pricingPolicy, tickSize = 1)
 
   val results = simulate(doubleAuction)(orderFlow)
