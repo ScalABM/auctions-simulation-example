@@ -30,19 +30,14 @@ import scala.util.{Failure, Random, Success}
   *
   * @author davidrpugh
   */
-object ContinuousDoubleAuction extends App with OrderGenerator {
+object ContinuousDoubleAuctionSimulation extends App with OrderGenerator {
 
   val config = ConfigFactory.load("continuous-double-auction.conf")
 
-  // probably want to push Security up into an esl-auctions Tradable hierarchy?
-  trait Security extends Tradable
-  case class AppleStock(tick: Long) extends Security
-
-  // configure the random order flow
   val seed = config.getLong("simulation.order-flow.seed")
   val prng = new Random(seed)
   val number = config.getInt("simulation.order-flow.number-orders")
-  val orderFlow: Stream[Order[AppleStock]] = randomOrders(number, AppleStock(1), prng)
+  val orderFlow: Stream[Order[AppleStock]] = randomOrders(number, AppleStock(), prng)
 
   // configure the pricing policy
   val k = config.getDouble("simulation.pricing-policy.weight")

@@ -17,7 +17,6 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import com.typesafe.config.ConfigFactory
 import org.economicsl.auctions.singleunit.orders.Order
 import org.economicsl.auctions.singleunit.pricing.WeightedAveragePricingPolicy
-import org.economicsl.core.Tradable
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
@@ -48,10 +47,6 @@ object PeriodicDoubleAuctionSimulation extends App with OrderGenerator {
   val path = config.getString("simulation.results.path")
   val settlementService = actorSystem.actorOf(Props(classOf[SettlementActor], path), "settlement")
 
-  // probably want to push Security up into an esl-auctions Tradable hierarchy?
-  trait Security extends Tradable
-  case class AppleStock(tick: Long) extends Security
-
   // configure the auction mechanism
   val auctionClass = classOf[PeriodicDoubleAuctionActor[AppleStock]]
   val tickSize = config.getLong("simulation.auction.tick-size")
@@ -65,7 +60,7 @@ object PeriodicDoubleAuctionSimulation extends App with OrderGenerator {
   val seed = config.getLong("simulation.order-flow.seed")
   val prng = new Random(seed)
   val number = config.getInt("simulation.order-flow.number-orders")
-  val orderFlow: Stream[Order[AppleStock]] = randomOrders(number, AppleStock(1), prng)
+  val orderFlow: Stream[Order[AppleStock]] = randomOrders(number, AppleStock(), prng)
 
   orderFlow.foreach(order => auctionService ! order)
 
